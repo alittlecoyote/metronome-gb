@@ -1338,6 +1338,7 @@ ENDC
     ld a, %11100100
     ld [BG_PALETTE], a
     ld [SPRITE_PALETTE_1], a
+    ld a, %10010000
     ld [SPRITE_PALETTE_2], a
 
     ; Reset sprites
