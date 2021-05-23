@@ -1,0 +1,3 @@
+# exclude compiled games and saves
+*.gb
+*.sav
