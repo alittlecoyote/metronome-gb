@@ -57,7 +57,10 @@ ENDR
 ENDM
 
 SECTION "RAM variables",WRAM0[USER_RAM_START]
-BALL_POSITION: DS 1
+BALL_POSITION: DS 1  ; Specifies the x position of the ball
+BALL_SLOT: DS 1      ; Specifies which slot the ball is in
+BALL_DIRECTION: DS 1 ; If 0 direction=left, else direction=right
+SCORE: DS 1          ; Score of the current game
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
@@ -117,9 +120,6 @@ TransitionToGame:
 
     call InitBallPosition
 
-    jr TitleLoop
-
-
 SetupHighScore:
     ; For this game, we only ever use one save data bank, the first one (0)
     xor a 
@@ -170,11 +170,54 @@ SetupHighScore:
     
     ret 
 
+; Modifies AF
 InitBallPosition:    
-    ; X 
-    ld a, BALL_SLOT_3
-    ld [BALL_POSITION], a 
+    ; Slot tracker
+    ld a, 5
+    ld [BALL_SLOT], a
 
+    ; direction
+    ld a, 0
+    ld [BALL_DIRECTION], a
+
+    ; Init score
+    ld [SCORE], a
+
+; Modifies AF
+UpdateBallPostion:
+    ld a, [BALL_SLOT]
+    cp 6
+    jr z, .slot6
+    cp 5
+    jr z, .slot5
+    cp 4
+    jr z, .slot4
+    cp 3
+    jr z, .slot3
+    cp 2
+    jr z, .slot2
+    cp 1
+    jr z, .slot1
+.slot6
+    ld a, BALL_SLOT_6
+    jr .write
+.slot5
+    ld a, BALL_SLOT_5
+    jr .write
+.slot4
+    ld a, BALL_SLOT_4
+    jr .write
+.slot3
+    ld a, BALL_SLOT_3
+    jr .write
+.slot2
+    ld a, BALL_SLOT_2
+    jr .write
+.slot1
+    ld a, BALL_SLOT_1
+.write
+    ld [BALL_POSITION], a 
+    
 ; Modifies AF
 DrawBall:  
 
@@ -222,5 +265,62 @@ DrawBall:
     ld [SPRITES_START+15], a 
     ld [SPRITES_START+19], a 
     ld [SPRITES_START+23], a 
+    
+    jr GameLoop
+
+GameLoop:
+    ; Loop will bounce the ball from side to side, the player must hit the right button when the ball is in the last slot on each end
+    ld a, [BALL_SLOT] ; Current slot
+    cp 1
+    jr z, .slot1      ; If current slot == 1 jump to .slot1
+    cp 6
+    jr z, .slot6      ; If current slot == 6 jump to .slot6
+.otherSlot
+    ;Otherwise the rest of the slots are treated the same
+    ld a, [BALL_DIRECTION]
+    cp 1
+    jr z, .slotRight
+    jr .slotLeft
+.slot1
+    ld a, 1
+    ld [BALL_DIRECTION], a
+    ; TODO: check for inputs
+    call .incScore
+    jr .slotRight
+.slot6
+    xor a ; let a == 0 
+    ld [BALL_DIRECTION], a
+    ; TODO: check for inputs
+    call .incScore
+    jr .slotLeft
+.slotLeft
+    ld a, [BALL_SLOT]
+    dec a
+    ld [BALL_SLOT], a
+    call ShortWait
+    jp UpdateBallPostion
+.slotRight
+    ld a, [BALL_SLOT]
+    inc a
+    ld [BALL_SLOT], a
+    call ShortWait
+    jp UpdateBallPostion
+.incScore
+    ld a, [SCORE]
+    inc a
+    ld [SCORE], a
+    ret
+
+ShortWait:
+    ld b, 10
+    
+.loop:     
+    halt 
+    nop 
+    
+    dec b 
+    ld a, b
+    cp 0 
+    jr nz, .loop 
     
     ret
