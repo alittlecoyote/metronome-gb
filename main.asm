@@ -28,6 +28,7 @@ INCLUDE "deps/gingerbread.asm"
 
 ; This section is for including files that need to be in data banks
 SECTION "Include@banks",ROMX
+INCLUDE "deps/ibmpc1.inc"
 INCLUDE "images/metronome_bg.inc"
 
 IF DEF(USE_GBT_PLAYER)
@@ -75,12 +76,81 @@ BALL_SLOT_3                     equ 64
 BALL_SLOT_4                     equ 91
 BALL_SLOT_5                     equ 118
 BALL_SLOT_6                     equ 145
-TOP_WHOLE_BALL_PART             equ $32
-TOP_HALF_BALL_PART              equ $34
-BOTTOM_WHOLE_BALL_PART          equ $36
-BOTTOM_HALF_BALL_PART           equ $38
+TOP_WHOLE_BALL_PART             equ $2C
+TOP_HALF_BALL_PART              equ $2E
+BOTTOM_WHOLE_BALL_PART          equ $30
+BOTTOM_HALF_BALL_PART           equ $32
+
+SECTION "Text definitions",ROM0 
+; Charmap definition (based on the pong.png image, and looking in the VRAM viewer after loading it in BGB helps finding the values for each character)
+CHARMAP "A",$76
+CHARMAP "B",$77
+CHARMAP "C",$78
+CHARMAP "D",$79
+CHARMAP "E",$7A
+CHARMAP "F",$7B
+CHARMAP "G",$7C
+CHARMAP "H",$7D
+CHARMAP "I",$7E
+CHARMAP "J",$7F
+CHARMAP "K",$80
+CHARMAP "L",$81
+CHARMAP "M",$82
+CHARMAP "N",$83
+CHARMAP "O",$84
+CHARMAP "P",$85
+CHARMAP "Q",$86
+CHARMAP "R",$87
+CHARMAP "S",$88
+CHARMAP "T",$89
+CHARMAP "U",$8A
+CHARMAP "V",$8B
+CHARMAP "W",$8C
+CHARMAP "X",$8D
+CHARMAP "Y",$8E
+CHARMAP "Z",$8F
+CHARMAP "a",$96
+CHARMAP "b",$97
+CHARMAP "c",$98
+CHARMAP "d",$99
+CHARMAP "e",$9A
+CHARMAP "f",$9B
+CHARMAP "g",$9C
+CHARMAP "h",$9D
+CHARMAP "i",$9E
+CHARMAP "j",$9F
+CHARMAP "k",$A0
+CHARMAP "l",$A1
+CHARMAP "m",$A2
+CHARMAP "n",$A3
+CHARMAP "o",$A4
+CHARMAP "p",$A5
+CHARMAP "q",$A6
+CHARMAP "r",$A7
+CHARMAP "s",$A8
+CHARMAP "t",$A9
+CHARMAP "u",$AA
+CHARMAP "v",$AB
+CHARMAP "w",$AC
+CHARMAP "x",$AD
+CHARMAP "y",$AE
+CHARMAP "z",$AF
+CHARMAP ":",$6F
+CHARMAP " ",$55
+CHARMAP "<end>",$0 ; Choose some non-character tile that's easy to remember 
+
+; Text definitions 
+ScoreText:
+DB "Score: <end>"
+HighScoreText:
+DB "High Score: <end>"
+ClearText:
+DB "                         <end>"
 
 SECTION "StartOfGameCode",ROM0    
+CharsetTileData:
+    chr_IBMPC1  1,8 ; LOAD ENTIRE CHARACTER SET
+
 begin: ; GingerBread assumes that the label "begin" is where the game should start
 
     ; We need to switch bank to whatever bank contains the tile data 
@@ -91,6 +161,11 @@ begin: ; GingerBread assumes that the label "begin" is where the game should sta
     ld de, TILEDATA_START
     ld bc, metronome_bg_tile_data_size
     call mCopyVRAM
+
+    ld  hl, CharsetTileData
+    ld  de, TILEDATA_START + metronome_bg_tile_data_size
+    ld  bc, 8*256       ; the ASCII character set: 256 characters, each with 8 bytes of display data
+    call    mCopyVramMono    
     
     ld a, BANK(metronome_bg_map_data)
     ld [ROM_BANK_SWITCH], a 
@@ -117,6 +192,21 @@ TitleLoop:
     jr TitleLoop
 
 TransitionToGame:
+    ; Clear highscore line 
+    ld c, 0 
+    ld b, 0
+    ld hl, ClearText
+    ld d, 0
+    ld e, 14
+    call RenderTextToEnd
+
+    ; Draw "Score:" 
+    ld c, 0 
+    ld b, 0
+    ld hl, ScoreText
+    ld d, 3
+    ld e, 3
+    call RenderTextToEnd
 
     call InitBallPosition
 
@@ -155,6 +245,14 @@ SetupHighScore:
     jr .print
     
 .print:
+
+    ld c, 0 
+    ld b, 0
+    ld hl, HighScoreText
+    ld d, 2
+    ld e, 14
+    call RenderTextToEnd
+
     ; Display current high score 
     ld a, [SRAM_HIGH_SCORE]
     ld b, a 
@@ -162,9 +260,9 @@ SetupHighScore:
     call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
     
     ld a, b 
-    ld b, $27 ; tile number of 0 character on the title screen   
+    ld b, $65 ; tile number of 0 character on the title screen   
     ld c, 0   ; draw to background
-    ld d, 8   ; X position 
+    ld d, 14   ; X position 
     ld e, 14  ; Y position 
     call RenderTwoDecimalNumbers
     
@@ -257,7 +355,6 @@ DrawBall:
     ld a, BOTTOM_HALF_BALL_PART
     ld [SPRITES_START+22], a ; Bottom Right
 
-    xor a ; Flags (including GBC sprite color palette)
     ld a, %10000
     ld [SPRITES_START+3], a
     ld [SPRITES_START+7], a 
@@ -269,6 +366,14 @@ DrawBall:
     jr GameLoop
 
 GameLoop:
+.drawScore
+    ld a, [SCORE]
+    ld b, $65 ; tile number of 0 character on the title screen   
+    ld c, 0   ; draw to background
+    ld d, 9   ; X position 
+    ld e, 3  ; Y position 
+    call RenderTwoDecimalNumbers
+
     ; Loop will bounce the ball from side to side, the player must hit the right button when the ball is in the last slot on each end
     ld a, [BALL_SLOT] ; Current slot
     cp 1
@@ -308,6 +413,7 @@ GameLoop:
 .incScore
     ld a, [SCORE]
     inc a
+    daa
     ld [SCORE], a
     ret
 

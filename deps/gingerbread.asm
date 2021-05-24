@@ -317,6 +317,30 @@ WaitForNonBusyLCDSafeA: MACRO
     pop af
 ENDM
 
+
+mCopyVramMono:
+    inc b
+    inc c
+    jr  .skip
+.loop   
+    di
+        ; This "WaitForNonBusyLCD" here, along with the disabled interrupts, makes it safe to read/write to/from VRAM when LCD is on
+        ; Essentially, we're waiting for the LCD to be non-busy before reading/writing. If we don't do this, we can
+        ; read/write when the LCD is busy which results in corrupted data.
+        WaitForNonBusyLCD
+        ld  a,[hl+]
+        ld  [de],a
+        inc de
+        ld  [de],a
+    ei
+    inc de
+.skip   
+    dec c
+    jr  nz, .loop
+    dec b
+    jr  nz, .loop
+    ret
+
 ; Copies data in a way that is safe to use when reading/writing to/from VRAM while LCD is on (but slower than mCopy)
 ; HL - memory position of the start of the copying source
 ; DE - memory position of the start of the copying destination
