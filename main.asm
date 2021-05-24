@@ -214,7 +214,6 @@ DrawBall:
     ld a, BOTTOM_HALF_BALL_PART
     ld [SPRITES_START+22], a ; Bottom Right
 
-    xor a ; Flags (including GBC sprite color palette)
     ld a, %10000
     ld [SPRITES_START+3], a
     ld [SPRITES_START+7], a 
