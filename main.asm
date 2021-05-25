@@ -1,25 +1,25 @@
 
-; This section is for including files that either need to be in the home section, or files where it doesn't matter 
+; This section is for including files that either need to be in the home section, or files where it doesn't matter
 SECTION "Includes@home",ROM0
 
 ; Prior to importing GingerBread, some options can be specified
 
 ; Max 15 characters, should be uppercase ASCII
-GAME_NAME EQUS "METRONOME" 
+GAME_NAME EQUS "METRONOME"
 
 ; Include SGB support in GingerBread. This makes the GingerBread library take up a bit more space on ROM0. To remove support, comment out this line (don't set it to 0)
-;SGB_SUPPORT EQU 1 
+;SGB_SUPPORT EQU 1
 
 ; Include GBC support in GingerBread. This makes the GingerBread library take up slightly more space on ROM0. To remove support, comment out this line (don't set it to 0)
 ;GBC_SUPPORT EQU 1
 
 ; Set the size of the ROM file here. 0 means 32 kB, 1 means 64 kB, 2 means 128 kB and so on.
-ROM_SIZE EQU 1 
+ROM_SIZE EQU 1
 
-; Set the size of save RAM inside the cartridge. 
-; If printed to real carts, it needs to be small enough to fit. 
-; 0 means no RAM, 1 means 2 kB, 2 -> 8 kB, 3 -> 32 kB, 4 -> 128 kB 
-RAM_SIZE EQU 1 
+; Set the size of save RAM inside the cartridge.
+; If printed to real carts, it needs to be small enough to fit.
+; 0 means no RAM, 1 means 2 kB, 2 -> 8 kB, 3 -> 32 kB, 4 -> 128 kB
+RAM_SIZE EQU 1
 
 INCLUDE "deps/gingerbread.asm"
 
@@ -50,9 +50,9 @@ REPT \1
     ld bc, \2
     ld hl, \3+(I*\2)
     ld de, \4+(I*32)
-    
+
     call mCopyVRAM
-    
+
 I SET I+1
 ENDR
 ENDM
@@ -65,10 +65,10 @@ SCORE: DS 1          ; Score of the current game
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
-SRAM_HIGH_SCORE: DS 1 
+SRAM_HIGH_SCORE: DS 1
 
 ; Definition of some constants
-BALL_SPEED                      equ 1   
+BALL_SPEED                      equ 1
 BALL_HEIGHT                     equ 77
 BALL_SLOT_1                     equ 10
 BALL_SLOT_2                     equ 37
@@ -81,8 +81,7 @@ TOP_HALF_BALL_PART              equ $2E
 BOTTOM_WHOLE_BALL_PART          equ $30
 BOTTOM_HALF_BALL_PART           equ $32
 
-SECTION "Text definitions",ROM0 
-; Charmap definition (based on the pong.png image, and looking in the VRAM viewer after loading it in BGB helps finding the values for each character)
+SECTION "Text definitions",ROM0
 CHARMAP "A",$76
 CHARMAP "B",$77
 CHARMAP "C",$78
@@ -137,9 +136,9 @@ CHARMAP "y",$AE
 CHARMAP "z",$AF
 CHARMAP ":",$6F
 CHARMAP " ",$55
-CHARMAP "<end>",$0 ; Choose some non-character tile that's easy to remember 
+CHARMAP "<end>",$0 ; Choose some non-character tile that's easy to remember
 
-; Text definitions 
+; Text definitions
 ScoreText:
 DB "Score: <end>"
 HighScoreText:
@@ -147,16 +146,16 @@ DB "High Score: <end>"
 ClearText:
 DB "                         <end>"
 
-SECTION "StartOfGameCode",ROM0    
+SECTION "StartOfGameCode",ROM0
 CharsetTileData:
-    chr_IBMPC1  1,8 ; LOAD ENTIRE CHARACTER SET
+    chr_IBMPC1  1,8 ; load whole ipbpc charset (should really only load what i need)
 
-begin: ; GingerBread assumes that the label "begin" is where the game should start
+begin:
 
-    ; We need to switch bank to whatever bank contains the tile data 
+    ; Switch bank to whatever bank contains the tile data
     ld a, BANK(metronome_bg_tile_data)
-    ld [ROM_BANK_SWITCH], a 
-    
+    ld [ROM_BANK_SWITCH], a
+
     ld hl, metronome_bg_tile_data
     ld de, TILEDATA_START
     ld bc, metronome_bg_tile_data_size
@@ -165,120 +164,117 @@ begin: ; GingerBread assumes that the label "begin" is where the game should sta
     ld  hl, CharsetTileData
     ld  de, TILEDATA_START + metronome_bg_tile_data_size
     ld  bc, 8*256       ; the ASCII character set: 256 characters, each with 8 bytes of display data
-    call    mCopyVramMono    
-    
+    call    mCopyVramMono
+
     ld a, BANK(metronome_bg_map_data)
-    ld [ROM_BANK_SWITCH], a 
-    
+    ld [ROM_BANK_SWITCH], a
+
     CopyRegionToVRAM 18, 20, metronome_bg_map_data, BACKGROUND_MAPDATA_START
-    
+
     call StartLCD
 
     call SetupHighScore
 
-TitleLoop:
-
-    ld a, 1 
-    
-    halt
-    nop ; Always do a nop after a halt, because of a CPU bug
-    
-    call ReadKeys
-    and KEY_START
-    cp 0
-    
-    jp nz, TransitionToGame
-    
-    jr TitleLoop
-
-TransitionToGame:
-    ; Clear highscore line 
-    ld c, 0 
-    ld b, 0
-    ld hl, ClearText
-    ld d, 0
-    ld e, 14
-    call RenderTextToEnd
-
-    ; Draw "Score:" 
-    ld c, 0 
-    ld b, 0
-    ld hl, ScoreText
-    ld d, 3
-    ld e, 3
-    call RenderTextToEnd
-
-    call InitBallPosition
-
 SetupHighScore:
     ; For this game, we only ever use one save data bank, the first one (0)
-    xor a 
+    xor a
     call ChooseSaveDataBank
-    
-    ; Activate save data so we can read and write it 
+
+    ; Activate save data so we can read and write it
     call EnableSaveData
-    
-    ; If the integrity check doesn't read $1337, we should initialize a default high score of 0 and then write $1337 to the integrity check position 
+
+    ; If the integrity check doesn't read $1337, we should initialize a default high score of 0 and then write $1337 to the integrity check position
     ld a, [SRAM_INTEGRITY_CHECK]
     cp $13
     jr nz, .initializeSRAM
-    
+
     ld a, [SRAM_INTEGRITY_CHECK+1]
     cp $37
     jr nz, .initializeSRAM
-    
+
     ; If we get here, no initialization is necessary
     jr .print
-    
+
 .initializeSRAM:
-    ; Initialize high score to 0 
-    xor a 
-    ld [SRAM_HIGH_SCORE], a 
-    
-    ; Intialize integrity check so that high score will not be overwritten on next boot 
+    ; Initialize high score to 0
+    xor a
+    ld [SRAM_HIGH_SCORE], a
+
+    ; Intialize integrity check so that high score will not be overwritten on next boot
     ld a, $13
-    ld [SRAM_INTEGRITY_CHECK], a 
-    
+    ld [SRAM_INTEGRITY_CHECK], a
+
     ld a, $37
-    ld [SRAM_INTEGRITY_CHECK+1], a 
-    
+    ld [SRAM_INTEGRITY_CHECK+1], a
+
     jr .print
-    
+
 .print:
 
-    ld c, 0 
+    ld c, 0
     ld b, 0
     ld hl, HighScoreText
     ld d, 2
     ld e, 14
     call RenderTextToEnd
 
-    ; Display current high score 
+    ; Display current high score
     ld a, [SRAM_HIGH_SCORE]
-    ld b, a 
-    
+    ld b, a
+
     call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
-    
-    ld a, b 
-    ld b, $65 ; tile number of 0 character on the title screen   
+
+    ld a, b
+    ld b, $65 ; tile number of 0 character on the title screen
     ld c, 0   ; draw to background
-    ld d, 14   ; X position 
-    ld e, 14  ; Y position 
+    ld d, 14   ; X position
+    ld e, 14  ; Y position
     call RenderTwoDecimalNumbers
-    
-    ret 
+
+TitleLoop:
+
+    ld a, 1
+
+    halt
+    nop ; Always do a nop after a halt, because of a CPU bug
+
+    call ReadKeys
+    and KEY_START
+    cp 0
+
+    jp nz, TransitionToGame
+
+    jr TitleLoop
+
+; Modifies ABCDEFHL
+TransitionToGame:
+    ; Clear highscore line
+    ld c, 0
+    ld b, 0
+    ld hl, ClearText
+    ld d, 0
+    ld e, 14
+    call RenderTextToEnd
+
+    ; Draw "Score:"
+    ld c, 0
+    ld b, 0
+    ld hl, ScoreText
+    ld d, 3
+    ld e, 3
+    call RenderTextToEnd
 
 ; Modifies AF
-InitBallPosition:    
+InitBallPosition:
     ; Slot tracker
     ld a, 5
     ld [BALL_SLOT], a
 
-    ; direction
+    ; direction - 0 - left
     ld a, 0
     ld [BALL_DIRECTION], a
 
-    ; Init score
+    ; Init score - 0
     ld [SCORE], a
 
 ; Modifies AF
@@ -314,10 +310,10 @@ UpdateBallPostion:
 .slot1
     ld a, BALL_SLOT_1
 .write
-    ld [BALL_POSITION], a 
-    
+    ld [BALL_POSITION], a
+
 ; Modifies AF
-DrawBall:  
+DrawBall:
 
     ; Write y positions
     ld a, BALL_HEIGHT        ; Y location
@@ -330,7 +326,7 @@ DrawBall:
     ld [SPRITES_START+20], a ; Bottom Right
 
     ; Write x positions
-    ld a, [BALL_POSITION]    ; X location 
+    ld a, [BALL_POSITION]    ; X location
     ld [SPRITES_START+1], a  ; Top Left
     ld [SPRITES_START+13], a ; Bottom Left
     add 8                    ; Middle column is 8 pixels across
@@ -355,23 +351,23 @@ DrawBall:
     ld a, BOTTOM_HALF_BALL_PART
     ld [SPRITES_START+22], a ; Bottom Right
 
-    ld a, %10000
+    ld a, %10000             ; Flags - Use alt palette
     ld [SPRITES_START+3], a
-    ld [SPRITES_START+7], a 
-    ld [SPRITES_START+11], a 
-    ld [SPRITES_START+15], a 
-    ld [SPRITES_START+19], a 
-    ld [SPRITES_START+23], a 
-    
+    ld [SPRITES_START+7], a
+    ld [SPRITES_START+11], a
+    ld [SPRITES_START+15], a
+    ld [SPRITES_START+19], a
+    ld [SPRITES_START+23], a
+
     jr GameLoop
 
 GameLoop:
 .drawScore
     ld a, [SCORE]
-    ld b, $65 ; tile number of 0 character on the title screen   
+    ld b, $65 ; tile number of 0 character on the title screen
     ld c, 0   ; draw to background
-    ld d, 9   ; X position 
-    ld e, 3  ; Y position 
+    ld d, 9   ; X position
+    ld e, 3  ; Y position
     call RenderTwoDecimalNumbers
 
     ; Loop will bounce the ball from side to side, the player must hit the right button when the ball is in the last slot on each end
@@ -393,7 +389,7 @@ GameLoop:
     call .incScore
     jr .slotRight
 .slot6
-    xor a ; let a == 0 
+    xor a ; let a == 0
     ld [BALL_DIRECTION], a
     ; TODO: check for inputs
     call .incScore
@@ -419,14 +415,14 @@ GameLoop:
 
 ShortWait:
     ld b, 10
-    
-.loop:     
-    halt 
-    nop 
-    
-    dec b 
+
+.loop:
+    halt
+    nop
+
+    dec b
     ld a, b
-    cp 0 
-    jr nz, .loop 
-    
+    cp 0
+    jr nz, .loop
+
     ret
