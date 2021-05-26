@@ -1,4 +1,1 @@
-rgbasm -o main.o main.asm;
-rgblink -o metronome.gb main.o;
-rgbfix -v -p 0 metronome.gb;
-rm *.o
+rgbasm -E -o game/main.o main.asm && rgblink -o game/metronome.gb game/main.o -n game/metronome.sym && rgbfix -v -p 255 game/metronome.gb && rm game/*.o

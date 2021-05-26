@@ -3,3 +3,4 @@
 *.sav
 *.o
 .DS_Store
+/game
