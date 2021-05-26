@@ -62,6 +62,7 @@ BALL_POSITION: DS 1  ; Specifies the x position of the ball
 BALL_SLOT: DS 1      ; Specifies which slot the ball is in
 BALL_DIRECTION: DS 1 ; If 0 direction=left, else direction=right
 SCORE: DS 1          ; Score of the current game
+HIT: DS 1            ; Whether the player hit the ball
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
@@ -264,9 +265,13 @@ TransitionToGame:
     ld e, 3
     call RenderTextToEnd
 
+    call InitGame
+    call UpdateBallPostion
+    jr GameLoop
+
 ; Modifies AF
-InitBallPosition:
-    ; Slot tracker
+InitGame:
+    ; Slot tracker - Lets put the ball in slot 5 to begin
     ld a, 5
     ld [BALL_SLOT], a
 
@@ -276,6 +281,11 @@ InitBallPosition:
 
     ; Init score - 0
     ld [SCORE], a
+
+    ;Init hit
+    ld [HIT], a
+
+    ret
 
 ; Modifies AF
 UpdateBallPostion:
@@ -311,6 +321,138 @@ UpdateBallPostion:
     ld a, BALL_SLOT_1
 .write
     ld [BALL_POSITION], a
+
+    ret
+
+GameLoop:
+    ; Loop will bounce the ball from side to side, 
+    ; the player must hit the right button when the ball is in the last slot on each end
+    call DrawScore
+    call DrawBall
+    call WaitForInputs
+
+    ld a, [BALL_SLOT] ; Current slot
+    cp 1
+    jr z, .slot1      ; If current slot == 1 jump to .slot1
+    cp 6
+    jr z, .slot6      ; If current slot == 6 jump to .slot6
+.otherSlot
+    ; Otherwise the rest of the slots are treated the same way
+
+    ; If the player got a hit in a non end slot then its game over
+    ld a, [HIT]
+    cp 0
+    jp nz, GameOver
+    ; Otherwise the ball continues
+    ld a, [BALL_DIRECTION]
+    cp 1
+    jr z, .slotRight
+    jr .slotLeft
+.slot1
+    ; If the player doesn't get a hit in an end slot then its game over
+    ld a, [HIT]
+    cp 0
+    jp z, GameOver
+    ; Otherwise reset the hit and the ball continues
+    call ResetHit
+
+    ld a, 1
+    ld [BALL_DIRECTION], a
+    call .incScore
+    jr .slotRight
+.slot6
+    ; If the player doesn't get a hit in an end slot then its game over
+    ld a, [HIT]
+    cp 0
+    jp z, GameOver
+    call ResetHit
+
+    xor a ; let a == 0
+    ld [BALL_DIRECTION], a
+    call .incScore
+    jr .slotLeft
+.slotLeft
+    ld a, [BALL_SLOT]
+    dec a
+    ld [BALL_SLOT], a
+    call UpdateBallPostion
+    jr GameLoop
+.slotRight
+    ld a, [BALL_SLOT]
+    inc a
+    ld [BALL_SLOT], a
+    call UpdateBallPostion
+    jr GameLoop
+.incScore
+    ld a, [SCORE]
+    inc a
+    daa
+    ld [SCORE], a
+    ret
+
+WaitForInputs:
+    ld b, 20  ; TODO make this tick down to increase speed
+
+.loop:
+    halt
+    nop
+
+    call ReadKeys
+    push af  ; Push the keys to AF to get them back once we know the slot
+
+    ld a, [BALL_SLOT] ; Current slot
+    cp 1
+    jr z, .slot1      ; If current slot == 1 jump to .slot1
+    cp 6
+    jr z, .slot6      ; If current slot == 6 jump to .slot6
+    jr .otherSlot
+
+.continueLoop
+    dec b
+    ld a, b
+    cp 0
+    jr nz, .loop
+
+    ret
+
+.otherSlot
+    pop af
+    and KEY_A | KEY_LEFT
+    cp 0
+    call nz, SetHit
+    jr .continueLoop
+.slot1
+    pop af
+    and KEY_LEFT
+    cp 0
+    call nz, SetHit
+    jr .continueLoop
+.slot6
+    pop af
+    and KEY_A
+    cp 0
+    call nz, SetHit
+    jr .continueLoop
+
+SetHit:
+    ld a, 1
+    ld [HIT], a
+    ret
+
+ResetHit:
+    xor a
+    ld [HIT], a
+    ret
+
+; Modifies ABCDE
+DrawScore:
+    ld a, [SCORE]
+    ld b, $65 ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 9   ; X position
+    ld e, 3  ; Y position
+    call RenderTwoDecimalNumbers
+    ret
 
 ; Modifies AF
 DrawBall:
@@ -359,70 +501,26 @@ DrawBall:
     ld [SPRITES_START+19], a
     ld [SPRITES_START+23], a
 
-    jr GameLoop
-
-GameLoop:
-.drawScore
-    ld a, [SCORE]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 3  ; Y position
-    call RenderTwoDecimalNumbers
-
-    ; Loop will bounce the ball from side to side, the player must hit the right button when the ball is in the last slot on each end
-    ld a, [BALL_SLOT] ; Current slot
-    cp 1
-    jr z, .slot1      ; If current slot == 1 jump to .slot1
-    cp 6
-    jr z, .slot6      ; If current slot == 6 jump to .slot6
-.otherSlot
-    ;Otherwise the rest of the slots are treated the same
-    ld a, [BALL_DIRECTION]
-    cp 1
-    jr z, .slotRight
-    jr .slotLeft
-.slot1
-    ld a, 1
-    ld [BALL_DIRECTION], a
-    ; TODO: check for inputs
-    call .incScore
-    jr .slotRight
-.slot6
-    xor a ; let a == 0
-    ld [BALL_DIRECTION], a
-    ; TODO: check for inputs
-    call .incScore
-    jr .slotLeft
-.slotLeft
-    ld a, [BALL_SLOT]
-    dec a
-    ld [BALL_SLOT], a
-    call ShortWait
-    jp UpdateBallPostion
-.slotRight
-    ld a, [BALL_SLOT]
-    inc a
-    ld [BALL_SLOT], a
-    call ShortWait
-    jp UpdateBallPostion
-.incScore
-    ld a, [SCORE]
-    inc a
-    daa
-    ld [SCORE], a
     ret
 
-ShortWait:
-    ld b, 10
-
-.loop:
-    halt
-    nop
-
-    dec b
-    ld a, b
-    cp 0
-    jr nz, .loop
-
+GameOver:
+; Compare player's score with high score and save new high score if it's higher 
+    ld a, [SCORE]
+    ld b, a 
+    
+    call EnableSaveData
+    ld a, [SRAM_HIGH_SCORE]
+    
+    cp b 
+    call c, .newHighScore
+    
+    call DisableSaveData
+    
+    ; Resets the game  
+    jp GingerBreadBegin 
+    
+; Local function for writing high score to SRAM     
+.newHighScore:
+    ld a, b 
+    ld [SRAM_HIGH_SCORE], a 
     ret
