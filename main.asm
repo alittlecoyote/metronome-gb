@@ -62,7 +62,8 @@ BALL_POSITION: DS 1  ; Specifies the x position of the ball
 BALL_SLOT: DS 1      ; Specifies which slot the ball is in
 BALL_DIRECTION: DS 1 ; If 0 direction=left, else direction=right
 SCORE: DS 1          ; Score of the current game
-HIT: DS 1            ; Whether the player hit the ball
+LEFT_HIT: DS 1       ; Whether the player hit the ball with the left key
+RIGHT_HIT: DS 1      ; Whether the player hit the ball with the right key
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
@@ -283,7 +284,8 @@ InitGame:
     ld [SCORE], a
 
     ;Init hit
-    ld [HIT], a
+    ld [LEFT_HIT], a
+    ld [RIGHT_HIT], a
 
     ret
 
@@ -325,7 +327,7 @@ UpdateBallPostion:
     ret
 
 GameLoop:
-    ; Loop will bounce the ball from side to side, 
+    ; Loop will bounce the ball from side to side,
     ; the player must hit the right button when the ball is in the last slot on each end
     call DrawScore
     call DrawBall
@@ -335,12 +337,13 @@ GameLoop:
     cp 1
     jr z, .slot1      ; If current slot == 1 jump to .slot1
     cp 6
-    jr z, .slot6      ; If current slot == 6 jump to .slot6
-.otherSlot
-    ; Otherwise the rest of the slots are treated the same way
-
+    jr z, .slot6      ; Else If current slot == 6 jump to .slot6
+.otherSlot            ; Else the rest of the slots are treated the same way
     ; If the player got a hit in a non end slot then its game over
-    ld a, [HIT]
+    ld a, [LEFT_HIT]
+    cp 0
+    jp nz, GameOver
+    ld a, [RIGHT_HIT]
     cp 0
     jp nz, GameOver
     ; Otherwise the ball continues
@@ -350,7 +353,7 @@ GameLoop:
     jr .slotLeft
 .slot1
     ; If the player doesn't get a hit in an end slot then its game over
-    ld a, [HIT]
+    ld a, [LEFT_HIT]
     cp 0
     jp z, GameOver
     ; Otherwise reset the hit and the ball continues
@@ -362,7 +365,7 @@ GameLoop:
     jr .slotRight
 .slot6
     ; If the player doesn't get a hit in an end slot then its game over
-    ld a, [HIT]
+    ld a, [RIGHT_HIT]
     cp 0
     jp z, GameOver
     call ResetHit
@@ -397,17 +400,8 @@ WaitForInputs:
     halt
     nop
 
-    call ReadKeys
-    push af  ; Push the keys to AF to get them back once we know the slot
+    call .setHits
 
-    ld a, [BALL_SLOT] ; Current slot
-    cp 1
-    jr z, .slot1      ; If current slot == 1 jump to .slot1
-    cp 6
-    jr z, .slot6      ; If current slot == 6 jump to .slot6
-    jr .otherSlot
-
-.continueLoop
     dec b
     ld a, b
     cp 0
@@ -415,33 +409,32 @@ WaitForInputs:
 
     ret
 
-.otherSlot
-    pop af
-    and KEY_A | KEY_LEFT
+.setHits
+    call ReadKeys
+    push af ; Store key status so it can be used twice
+    and KEY_A
     cp 0
-    call nz, SetHit
-    jr .continueLoop
-.slot1
+    call nz, SetRightHit
     pop af
     and KEY_LEFT
     cp 0
-    call nz, SetHit
-    jr .continueLoop
-.slot6
-    pop af
-    and KEY_A
-    cp 0
-    call nz, SetHit
-    jr .continueLoop
+    call nz, SetLeftHit
+    ret
 
-SetHit:
+SetLeftHit:
     ld a, 1
-    ld [HIT], a
+    ld [LEFT_HIT], a
+    ret
+
+SetRightHit:
+    ld a, 1
+    ld [RIGHT_HIT], a
     ret
 
 ResetHit:
     xor a
-    ld [HIT], a
+    ld [LEFT_HIT], a
+    ld [RIGHT_HIT], a
     ret
 
 ; Modifies ABCDE
