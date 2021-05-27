@@ -151,10 +151,7 @@ DrawScore:
 
 ; Modifies ABCDE
 DrawLevel:
-    ld a, [BALL_DELAY]
-    ld b, a
-    ld a, LEVEL_CONST
-    sub a, b
+    ld a, [LEVEL]
     ld b, $65 ; tile number of 0 character on the title screen
     ld c, 0   ; draw to background
     ld d, 9   ; X position
@@ -273,7 +270,11 @@ IncreaseSpeed: ; If the score matches any of the cutoffs below the speed will in
     jr z, .increase
     cp $12
     jr z, .increase
-    cp $15
+    cp $14
+    jr z, .increase
+    cp $16
+    jr z, .increase
+    cp $18
     jr z, .increase
     cp $20
     jr z, .increase
@@ -293,11 +294,20 @@ IncreaseSpeed: ; If the score matches any of the cutoffs below the speed will in
     jr z, .increase
     cp $90
     jr z, .increase
+    cp $99
+    jr z, .increase
     ret
 .increase
     ld a, [BALL_DELAY]
     dec a
     ld [BALL_DELAY], a
+
+    ; Add 1 to the level and 'daa' it ready for printing
+    ld a, [LEVEL]
+    ld b, $01
+    add a, b
+    daa
+    ld [LEVEL], a
 
     ret
 

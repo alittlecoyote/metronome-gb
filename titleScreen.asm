@@ -132,19 +132,23 @@ InitGameVariables:
     ld a, 5
     ld [BALL_SLOT], a
 
+    ; Init Level - 1
+    ld a, 1
+    ld [LEVEL], a
+
+    ; Init ball delay to 20, the lower this is the faster the ball
+    ld a, $14
+    ld [BALL_DELAY], a
+
     ; direction - 0 - left
-    ld a, 0
+    xor a
     ld [BALL_DIRECTION], a
 
     ; Init score - 0
     ld [SCORE], a
 
-    ; Init hits
+    ; Init hits - 0
     ld [LEFT_HIT], a
     ld [RIGHT_HIT], a
-
-    ; Init ball delay to 20, the lower this is the faster the ball
-    ld a, 20
-    ld [BALL_DELAY], a
 
     ret
