@@ -1,4 +1,3 @@
-
 ; This section is for including files that either need to be in the home section, or files where it doesn't matter
 SECTION "Includes@home",ROM0
 
@@ -57,18 +56,23 @@ I SET I+1
 ENDR
 ENDM
 
+
 SECTION "RAM variables",WRAM0[USER_RAM_START]
-BALL_POSITION: DS 1  ; Specifies the x position of the ball
-BALL_SLOT: DS 1      ; Specifies which slot the ball is in
-BALL_DIRECTION: DS 1 ; If 0 direction=left, else direction=right
-SCORE: DS 1          ; Score of the current game
+BALL_POSITION: DS 1       ; Specifies the x position of the ball
+BALL_SLOT: DS 1           ; Specifies which slot the ball is in
+BALL_DIRECTION: DS 1      ; If 0 direction=left, else direction=right
+SCORE: DS 1               ; Score of the current game
+LEFT_HIT: DS 1            ; Whether the player hit the ball with the left key
+RIGHT_HIT: DS 1           ; Whether the player hit the ball with the right key
+BALL_DELAY: DS 1          ; Delay on the ball travelling to next square
+LEFT_STILL_PRESSED: DS 1  ; Tracks if the left button is being held down
+RIGHT_STILL_PRESSED: DS 1 ; Tracks if the right button is being held down
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
 SRAM_HIGH_SCORE: DS 1
 
 ; Definition of some constants
-BALL_SPEED                      equ 1
 BALL_HEIGHT                     equ 77
 BALL_SLOT_1                     equ 10
 BALL_SLOT_2                     equ 37
@@ -146,12 +150,12 @@ DB "High Score: <end>"
 ClearText:
 DB "                         <end>"
 
+
 SECTION "StartOfGameCode",ROM0
 CharsetTileData:
-    chr_IBMPC1  1,8 ; load whole ipbpc charset (should really only load what i need)
+    chr_IBMPC1  1,8 ; load whole ipbpc charset (should really only load what i need, but lazy)
 
 begin:
-
     ; Switch bank to whatever bank contains the tile data
     ld a, BANK(metronome_bg_tile_data)
     ld [ROM_BANK_SWITCH], a
@@ -264,9 +268,13 @@ TransitionToGame:
     ld e, 3
     call RenderTextToEnd
 
+    call InitGameVariables
+    call UpdateBallPostion
+    jr GameLoop
+
 ; Modifies AF
-InitBallPosition:
-    ; Slot tracker
+InitGameVariables:
+    ; Slot tracker - Lets put the ball in slot 5 to begin
     ld a, 5
     ld [BALL_SLOT], a
 
@@ -276,6 +284,166 @@ InitBallPosition:
 
     ; Init score - 0
     ld [SCORE], a
+
+    ; Init hits
+    ld [LEFT_HIT], a
+    ld [RIGHT_HIT], a
+
+    ; Init ball delay to 20, the lower this is the faster the ball
+    ld a, 20
+    ld [BALL_DELAY], a
+
+    ret
+
+GameLoop:
+    ; Loop will bounce the ball from side to side,
+    ; the player must hit the right button when the ball is in the last slot on each end
+    call DrawScore
+    call DrawBall
+    call WaitForInputs
+    call ResetPresses
+
+    ld a, [BALL_SLOT] ; Current slot
+    cp 1
+    jr z, .slot1      ; If current slot == 1 jump to .slot1
+    cp 6
+    jr z, .slot6      ; Else If current slot == 6 jump to .slot6
+.otherSlot            ; Else the rest of the slots are treated the same way
+    ; If the player got a hit in a non end slot then its game over
+    ld a, [LEFT_HIT]
+    cp 0
+    jp nz, GameOver
+    ld a, [RIGHT_HIT]
+    cp 0
+    jp nz, GameOver
+    ; Otherwise the ball continues
+    ld a, [BALL_DIRECTION]
+    cp 1
+    jr z, .slotRight
+    jr .slotLeft
+.slot1
+    ; If the player doesn't get a hit in an end slot then its game over
+    ld a, [LEFT_HIT]
+    cp 0
+    jp z, GameOver
+    ; Otherwise reset the hit and the ball continues
+    call ResetHit
+
+    ld a, 1
+    ld [BALL_DIRECTION], a
+    call IncrementScore
+    jr .slotRight
+.slot6
+    ; If the player doesn't get a hit in an end slot then its game over
+    ld a, [RIGHT_HIT]
+    cp 0
+    jp z, GameOver
+    call ResetHit
+
+    xor a ; let a == 0
+    ld [BALL_DIRECTION], a
+    call IncrementScore
+    jr .slotLeft
+.slotLeft
+    ld a, [BALL_SLOT]
+    dec a
+    ld [BALL_SLOT], a
+    call UpdateBallPostion
+    jr GameLoop
+.slotRight
+    ld a, [BALL_SLOT]
+    inc a
+    ld [BALL_SLOT], a
+    call UpdateBallPostion
+    jr GameLoop
+
+WaitForInputs:
+    ld a, [BALL_DELAY]  ; Lower delay == faster ball
+    ld b, a
+.loop:
+    halt
+    nop
+
+    call .setHits
+
+    dec b
+    ld a, b
+    cp 0
+    jr nz, .loop
+
+    ret
+
+.setHits
+    call ReadKeys
+    push af ; Store key status so it can be used twice
+    and KEY_A
+    cp 0
+    call nz, SetRightHit
+    pop af
+    and KEY_LEFT
+    cp 0
+    call nz, SetLeftHit
+    ret
+
+;Modifies AF
+SetLeftHit:
+    ld a, [LEFT_STILL_PRESSED] ; If the player hasn't lifted the key yet, don't set a hit
+    cp 1
+    ret z
+
+    ld a, 1
+    ld [LEFT_HIT], a
+    ld [LEFT_STILL_PRESSED], a
+    ret
+
+;Modifies AF
+SetRightHit:
+    ld a, [RIGHT_STILL_PRESSED] ; If the player hasn't lifted the key yet, don't set a hit
+    cp 1
+    ret z
+
+    ld a, 1
+    ld [RIGHT_HIT], a
+    ld [RIGHT_STILL_PRESSED], a
+    ret
+
+;Modifies AF
+ResetHit:
+    xor a
+    ld [LEFT_HIT], a
+    ld [RIGHT_HIT], a
+    ret
+
+;Modifies AF
+ResetPresses:
+    call ReadKeys
+    push af ; Store key status so it can be used twice
+    and KEY_A
+    cp 0
+    call z, .resetRightPress ; Only clear the press tracker if the button isn't currently pressed
+    pop af
+    and KEY_LEFT
+    cp 0
+    call z, .resetLeftPress ; Only clear the press tracker if the button isn't currently pressed
+    ret
+.resetRightPress
+    xor a
+    ld [RIGHT_STILL_PRESSED], a
+    ret
+.resetLeftPress
+    xor a
+    ld [LEFT_STILL_PRESSED], a
+    ret
+
+; Modifies ABCDE
+DrawScore:
+    ld a, [SCORE]
+    ld b, $65 ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 9   ; X position
+    ld e, 3  ; Y position
+    call RenderTwoDecimalNumbers
+    ret
 
 ; Modifies AF
 UpdateBallPostion:
@@ -311,6 +479,8 @@ UpdateBallPostion:
     ld a, BALL_SLOT_1
 .write
     ld [BALL_POSITION], a
+
+    ret
 
 ; Modifies AF
 DrawBall:
@@ -359,70 +529,78 @@ DrawBall:
     ld [SPRITES_START+19], a
     ld [SPRITES_START+23], a
 
-    jr GameLoop
+    ret
 
-GameLoop:
-.drawScore
-    ld a, [SCORE]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 3  ; Y position
-    call RenderTwoDecimalNumbers
-
-    ; Loop will bounce the ball from side to side, the player must hit the right button when the ball is in the last slot on each end
-    ld a, [BALL_SLOT] ; Current slot
-    cp 1
-    jr z, .slot1      ; If current slot == 1 jump to .slot1
-    cp 6
-    jr z, .slot6      ; If current slot == 6 jump to .slot6
-.otherSlot
-    ;Otherwise the rest of the slots are treated the same
-    ld a, [BALL_DIRECTION]
-    cp 1
-    jr z, .slotRight
-    jr .slotLeft
-.slot1
-    ld a, 1
-    ld [BALL_DIRECTION], a
-    ; TODO: check for inputs
-    call .incScore
-    jr .slotRight
-.slot6
-    xor a ; let a == 0
-    ld [BALL_DIRECTION], a
-    ; TODO: check for inputs
-    call .incScore
-    jr .slotLeft
-.slotLeft
-    ld a, [BALL_SLOT]
-    dec a
-    ld [BALL_SLOT], a
-    call ShortWait
-    jp UpdateBallPostion
-.slotRight
-    ld a, [BALL_SLOT]
-    inc a
-    ld [BALL_SLOT], a
-    call ShortWait
-    jp UpdateBallPostion
-.incScore
+; Modifies AF
+IncrementScore:
     ld a, [SCORE]
     inc a
     daa
     ld [SCORE], a
+    call IncreaseSpeed
     ret
 
-ShortWait:
-    ld b, 10
+; Modifies AF
+IncreaseSpeed: ; If the score matches any of the cutoffs below the speed will increase
+               ; This is effectively the difficulty curve
+    ld a, [SCORE]
+    cp $2
+    jr z, .increase
+    cp $4
+    jr z, .increase
+    cp $6
+    jr z, .increase
+    cp $8
+    jr z, .increase
+    cp $10
+    jr z, .increase
+    cp $12
+    jr z, .increase
+    cp $15
+    jr z, .increase
+    cp $20
+    jr z, .increase
+    cp $25
+    jr z, .increase
+    cp $30
+    jr z, .increase
+    cp $40
+    jr z, .increase
+    cp $50
+    jr z, .increase
+    cp $60
+    jr z, .increase
+    cp $70
+    jr z, .increase
+    cp $80
+    jr z, .increase
+    cp $90
+    jr z, .increase
+    ret
+.increase
+    ld a, [BALL_DELAY]
+    dec a
+    ld [BALL_DELAY], a
+    ret
 
-.loop:
-    halt
-    nop
-
-    dec b
-    ld a, b
-    cp 0
-    jr nz, .loop
-
+GameOver:
+; Compare player's score with high score and save new high score if it's higher 
+    ld a, [SCORE]
+    ld b, a 
+    
+    call EnableSaveData
+    ld a, [SRAM_HIGH_SCORE]
+    
+    cp b 
+    call c, .newHighScore
+    
+    call DisableSaveData
+    
+    ; Resets the game  
+    jp GingerBreadBegin 
+    
+; Local function for writing high score to SRAM     
+.newHighScore:
+    ld a, b 
+    ld [SRAM_HIGH_SCORE], a 
     ret
