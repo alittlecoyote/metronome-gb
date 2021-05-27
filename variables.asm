@@ -8,6 +8,7 @@ RIGHT_HIT: DS 1           ; Whether the player hit the ball with the right key
 BALL_DELAY: DS 1          ; Delay on the ball travelling to next square
 LEFT_STILL_PRESSED: DS 1  ; Tracks if the left button is being held down
 RIGHT_STILL_PRESSED: DS 1 ; Tracks if the right button is being held down
+LEVEL: DS 1               ; Current level
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
@@ -88,5 +89,7 @@ ScoreText:
 DB "Score: <end>"
 HighScoreText:
 DB "High Score: <end>"
+LevelText:
+DB "Level: <end>"
 ClearText:
 DB "                         <end>"
