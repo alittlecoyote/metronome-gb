@@ -20,15 +20,15 @@ ROM_SIZE EQU 1
 ; 0 means no RAM, 1 means 2 kB, 2 -> 8 kB, 3 -> 32 kB, 4 -> 128 kB
 RAM_SIZE EQU 1
 
-INCLUDE "deps/gingerbread.asm"
+INCLUDE "../deps/gingerbread.asm"
 
 ; To compile this game without gbt-player, comment out this line (don't set it to 0)
 ;USE_GBT_PLAYER EQU 1
 
 ; This section is for including files that need to be in data banks
 SECTION "Include@banks",ROMX
-INCLUDE "deps/ibmpc1.inc"
-INCLUDE "images/metronome_bg.inc"
+INCLUDE "../deps/ibmpc1.inc"
+INCLUDE "../deps/metronome_bg.inc"
 
 IF DEF(USE_GBT_PLAYER)
 INCLUDE "gbt_player.inc"
