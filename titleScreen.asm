@@ -106,6 +106,14 @@ TransitionToGame:
     ld e, 14
     call RenderTextToEnd
 
+    ; Draw "Level:"
+    ld c, 0
+    ld b, 0
+    ld hl, LevelText
+    ld d, 3
+    ld e, 1
+    call RenderTextToEnd
+
     ; Draw "Score:"
     ld c, 0
     ld b, 0

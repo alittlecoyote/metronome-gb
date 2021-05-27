@@ -25,6 +25,7 @@ TOP_WHOLE_BALL_PART             equ $2C
 TOP_HALF_BALL_PART              equ $2E
 BOTTOM_WHOLE_BALL_PART          equ $30
 BOTTOM_HALF_BALL_PART           equ $32
+LEVEL_CONST                     equ 21
 
 SECTION "Text definitions",ROM0
 CHARMAP "A",$76
@@ -88,5 +89,7 @@ ScoreText:
 DB "Score: <end>"
 HighScoreText:
 DB "High Score: <end>"
+LevelText:
+DB "Level: <end>"
 ClearText:
 DB "                         <end>"
