@@ -9,7 +9,7 @@ A ball bounces from side to side, hit it before it leaves the screen to score a 
 
 ## Controls ##
 
-Start Game:&nbsp;&ensp;**Start**
+Start Game:&nbsp;**Start**
 
 Left-Hit:&emsp;&emsp;&nbsp;**D-Pad Left**
 
@@ -30,6 +30,10 @@ A build script is included, [src/build.sh](src/build.sh), that will build a `gam
 
 This game was a project for me to learn some Game Boy ASM development basics, the scope is tiny and the code is likely very poorly optimised.
 
-If anyone is interested in doing something similar I highly recommend the [Gingerbread library](https://github.com/ahrnbom/gingerbread) and its associated book, "[Game Boy Assembly Programming for the Modern Game Developer](https://github.com/ahrnbom/gbapfomgd)." 
+### Some resources I found useful:
+
+[Game Boy Development Community](https://gbdev.io/) - This is a great collection of documents, tools and community links for Game Boy Development
+
+I highly recommend the [Gingerbread library](https://github.com/ahrnbom/gingerbread) and its associated book, "[Game Boy Assembly Programming for the Modern Game Developer](https://github.com/ahrnbom/gbapfomgd)." 
 
 This Gingerbread library provides some very useful boilerplate code such as defining various constants and low-level functions, takes care of the boot process and the ROM header, and when combined with the tutorials in Game Boy Assembly Programming for the Modern Game Developer made this process much easier than I was expecting.
