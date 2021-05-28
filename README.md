@@ -9,7 +9,7 @@ A ball bounces from side to side, hit it before it leaves the screen to score a 
 
 ## Controls ##
 
-Start Game:&nbsp;&nbsp;**Start**
+Start Game:&nbsp;&ensp;**Start**
 
 Left-Hit:&emsp;&emsp;&nbsp;**D-Pad Left**
 
