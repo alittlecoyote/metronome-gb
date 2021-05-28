@@ -36,4 +36,4 @@ This game was a project for me to learn some Game Boy ASM development basics, th
 
 I highly recommend the [Gingerbread library](https://github.com/ahrnbom/gingerbread) and its associated book, "[Game Boy Assembly Programming for the Modern Game Developer](https://github.com/ahrnbom/gbapfomgd)." 
 
-This Gingerbread library provides some very useful boilerplate code such as defining various constants and low-level functions, takes care of the boot process and the ROM header, and when combined with the tutorials in Game Boy Assembly Programming for the Modern Game Developer made this process much easier than I was expecting.
+This Gingerbread library provides some very useful boilerplate code such as defining various constants and low-level functions, takes care of the boot process and the ROM header, and when combined with the tutorials in "Game Boy Assembly Programming for the Modern Game Developer" they made this process much easier than I was expecting.
