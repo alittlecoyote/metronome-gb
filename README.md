@@ -5,7 +5,7 @@
 
 A ball bounces from side to side, hit it before it leaves the screen to score a point!
 
-![Metronome](demo/metronome_0.2.gif)
+![Metronome](demo/metronome.gif)
 
 ## Controls ##
 
@@ -16,7 +16,7 @@ Left-Hit:&emsp;&emsp;&nbsp;**D-Pad Left**
 Right-Hit:&nbsp;&emsp;&ensp;**A**
 
 ## Running the Game
-The latest version of `metronome.gb` can be found [here](https://github.com/alittlecoyote/metronome-gb/releases/latest).
+The latest version of `metronome.gb` can be found [here](https://github.com/cpcf/metronome-gb/releases/latest).
 
 You will need a Game Boy emulator like [BGB](http://bgb.bircd.org/), [SameBoy](https://sameboy.github.io/) to run the game.
 
