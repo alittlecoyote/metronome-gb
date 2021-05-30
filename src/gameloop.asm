@@ -245,23 +245,6 @@ DrawBall:
 
     ret
 
-WriteBallSpriteTiles:
-    ; Write sprite numbers
-    ld a, TOP_WHOLE_BALL_PART
-    ld [SPRITES_START+2], a  ; Top Left
-    ld [SPRITES_START+6], a  ; Top Middle
-
-    ld a, TOP_HALF_BALL_PART
-    ld [SPRITES_START+10], a ; Top Right
-
-    ld a, BOTTOM_WHOLE_BALL_PART
-    ld [SPRITES_START+14], a ; Bottom Left
-    ld [SPRITES_START+18], a ; Bottom Middle
-
-    ld a, BOTTOM_HALF_BALL_PART
-    ld [SPRITES_START+22], a ; Bottom Right
-    ret
-
 ; Modifies AF
 IncrementScore:
     ld a, [SCORE]
