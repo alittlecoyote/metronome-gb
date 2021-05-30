@@ -9,6 +9,7 @@ BALL_DELAY: DS 1          ; Delay on the ball travelling to next square
 LEFT_STILL_PRESSED: DS 1  ; Tracks if the left button is being held down
 RIGHT_STILL_PRESSED: DS 1 ; Tracks if the right button is being held down
 LEVEL: DS 1               ; Current level
+MAP_OFFSET: DS 2          ; Offset to add to map tiles due to loading multiple maps
 
 SECTION "SRAM variables",SRAM[SAVEDATA_START]
 SRAM_INTEGRITY_CHECK: DS 2 ; Two bytes that should read $1337; if they do not, the save is considered corrupt or unitialized
@@ -27,6 +28,8 @@ TOP_HALF_BALL_PART              equ $2E
 BOTTOM_WHOLE_BALL_PART          equ $30
 BOTTOM_HALF_BALL_PART           equ $32
 ZERO_CHAR                       equ $45
+CHARSET_COUNT                   equ 96
+CHARSET_SIZE                    equ CHARSET_COUNT * 8 ; 8*96 96 characters (256 max), each with 8 bytes of display data
 
 SECTION "Text definitions",ROM0
 CHARMAP "A",$56

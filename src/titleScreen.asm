@@ -1,8 +1,8 @@
 CharsetTileData:
-    chr_IBMPC1  2,5 ; load partial ipbpc charset (punctuation marks, alphanumeric chars)
+    chr_IBMPC1  2,4 ; load partial ipbpc charset (punctuation marks, alphanumeric chars)
 
 begin:
-    ; Switch bank to whatever bank contains the tile data
+    ; Switch bank to whatever bank contains the tile data and load all the tile data
     ld a, BANK(metronome_bg_tile_data)
     ld [ROM_BANK_SWITCH], a
 
@@ -13,13 +13,29 @@ begin:
 
     ld  hl, CharsetTileData
     ld  de, TILEDATA_START + metronome_bg_tile_data_size
-    ld  bc, 8*96       ; the ASCII character set: 64 characters (256 max), each with 8 bytes of display data
+    ld  bc, CHARSET_SIZE
     call    mCopyVramMono
 
-    ld a, BANK(metronome_bg_map_data)
+    ld hl, title_bg_tile_data
+    ld de, TILEDATA_START  + metronome_bg_tile_data_size + CHARSET_SIZE * 2 ; Charset size needs multiplied by 2
+    ld bc, title_bg_tile_data_size
+    call mCopyVRAM
+
+    ; Update map offset for the title background
+    xor a
+    ld b, metronome_bg_tile_count
+    add a, b
+    ld b, CHARSET_COUNT
+    add a, b
+    ld [MAP_OFFSET], a
+
+    ;  Switch bank to whatever bank contains the map data and load all the title map data
+    ld a, BANK(title_bg_map_data)
     ld [ROM_BANK_SWITCH], a
 
-    CopyRegionToVRAM 18, 20, metronome_bg_map_data, BACKGROUND_MAPDATA_START
+    CopyRegionToVRAM 18, 20, title_bg_map_data, BACKGROUND_MAPDATA_START
+
+    call ClearOffset
 
     call StartLCD
 
@@ -84,6 +100,13 @@ TransitionToGame:
     ld d, 0
     ld e, 14
     call RenderTextToEnd
+
+    ; Draw Background
+    ;  Switch bank to whatever bank contains the map data and load all the title map data
+    ld a, BANK(metronome_bg_map_data)
+    ld [ROM_BANK_SWITCH], a
+
+    CopyRegionToVRAM 18, 20, metronome_bg_map_data, BACKGROUND_MAPDATA_START
 
     ; Draw "Level:"
     ld c, 0
@@ -150,7 +173,13 @@ DrawHighScore:
     ld a, b
     ld b, ZERO_CHAR ; tile number of 0 character on the title screen
     ld c, 0   ; draw to background
-    ld d, 14   ; X position
+    ld d, 13   ; X position
     ld e, 14  ; Y position
     call RenderTwoDecimalNumbers
+    ret
+
+
+ClearOffset:
+    xor a
+    ld [MAP_OFFSET], a
     ret

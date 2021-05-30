@@ -395,7 +395,6 @@ DrawNewHighScore:
     ret
 
 GameOverLoop:
-
     ld a, 1
 
     halt
@@ -405,6 +404,12 @@ GameOverLoop:
     and KEY_START | KEY_A
     cp 0
 
-    jp nz, GingerBreadBegin 
+    jp nz, Restart 
 
     jr GameOverLoop
+
+Restart:
+    call ReadKeys
+    cp 0
+    jp nz, Restart
+    jp GingerBreadBegin
