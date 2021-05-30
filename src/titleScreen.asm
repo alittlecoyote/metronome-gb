@@ -1,5 +1,5 @@
 CharsetTileData:
-    chr_IBMPC1  1,8 ; load whole ipbpc charset (should really only load what i need, but lazy)
+    chr_IBMPC1  2,5 ; load partial ipbpc charset (punctuation marks, alphanumeric chars)
 
 begin:
     ; Switch bank to whatever bank contains the tile data
@@ -13,7 +13,7 @@ begin:
 
     ld  hl, CharsetTileData
     ld  de, TILEDATA_START + metronome_bg_tile_data_size
-    ld  bc, 8*256       ; the ASCII character set: 256 characters, each with 8 bytes of display data
+    ld  bc, 8*96       ; the ASCII character set: 64 characters (256 max), each with 8 bytes of display data
     call    mCopyVramMono
 
     ld a, BANK(metronome_bg_map_data)
@@ -75,7 +75,7 @@ SetupHighScore:
     call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
 
     ld a, b
-    ld b, $65 ; tile number of 0 character on the title screen
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
     ld c, 0   ; draw to background
     ld d, 14   ; X position
     ld e, 14  ; Y position

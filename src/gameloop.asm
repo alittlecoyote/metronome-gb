@@ -23,8 +23,8 @@ GameLoop:
     ; Otherwise the ball continues
     ld a, [BALL_DIRECTION]
     cp 1
-    jr z, .slotRight
-    jr .slotLeft
+    jr z, .moveRight
+    jr .moveLeft
 .slot1
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [LEFT_HIT]
@@ -36,7 +36,7 @@ GameLoop:
     ld a, 1
     ld [BALL_DIRECTION], a
     call IncrementScore
-    jr .slotRight
+    jr .moveRight
 .slot6
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [RIGHT_HIT]
@@ -47,14 +47,14 @@ GameLoop:
     xor a ; let a == 0
     ld [BALL_DIRECTION], a
     call IncrementScore
-    jr .slotLeft
-.slotLeft
+    jr .moveLeft
+.moveLeft
     ld a, [BALL_SLOT]
     dec a
     ld [BALL_SLOT], a
     call UpdateBallPostion
     jr GameLoop
-.slotRight
+.moveRight
     ld a, [BALL_SLOT]
     inc a
     ld [BALL_SLOT], a
@@ -142,20 +142,20 @@ ResetPresses:
 ; Modifies ABCDE
 DrawScore:
     ld a, [SCORE]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 3  ; Y position
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0         ; draw to background
+    ld d, 9         ; X position
+    ld e, 3         ; Y position
     call RenderTwoDecimalNumbers
     ret
 
 ; Modifies ABCDE
 DrawLevel:
     ld a, [LEVEL]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 1  ; Y position
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0         ; draw to background
+    ld d, 9         ; X position
+    ld e, 1         ; Y position
     call RenderTwoDecimalNumbers
     ret
 
@@ -245,6 +245,23 @@ DrawBall:
 
     ret
 
+WriteBallSpriteTiles:
+    ; Write sprite numbers
+    ld a, TOP_WHOLE_BALL_PART
+    ld [SPRITES_START+2], a  ; Top Left
+    ld [SPRITES_START+6], a  ; Top Middle
+
+    ld a, TOP_HALF_BALL_PART
+    ld [SPRITES_START+10], a ; Top Right
+
+    ld a, BOTTOM_WHOLE_BALL_PART
+    ld [SPRITES_START+14], a ; Bottom Left
+    ld [SPRITES_START+18], a ; Bottom Middle
+
+    ld a, BOTTOM_HALF_BALL_PART
+    ld [SPRITES_START+22], a ; Bottom Right
+    ret
+
 ; Modifies AF
 IncrementScore:
     ld a, [SCORE]
@@ -323,7 +340,10 @@ GameOver:
     call c, .newHighScore
     
     call DisableSaveData
-    
+
+    call HideSprites
+    call ClearScreen
+
     ; Resets the game  
     jp GingerBreadBegin 
     
@@ -332,3 +352,15 @@ GameOver:
     ld a, b 
     ld [SRAM_HIGH_SCORE], a 
     ret
+
+ClearScreen:
+    ld a, $FE
+    ld hl, BACKGROUND_MAPDATA_START
+    ld bc, 32*32
+    call mSetVRAM
+
+HideSprites:
+    ld   hl, SPRITES_START
+    ld   bc, SPRITES_LENGTH
+    xor a 
+    call mSetVRAM 
