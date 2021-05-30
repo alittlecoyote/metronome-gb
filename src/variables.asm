@@ -90,7 +90,11 @@ ScoreText:
 DB "Score: <end>"
 HighScoreText:
 DB "High Score: <end>"
+NewHighScoreText:
+DB "New High Score: <end>"
 LevelText:
 DB "Level: <end>"
+GameOverText:
+DB "Game Over<end>"
 ClearText:
 DB "                         <end>"

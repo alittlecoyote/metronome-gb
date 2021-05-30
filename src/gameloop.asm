@@ -141,6 +141,14 @@ ResetPresses:
 
 ; Modifies ABCDE
 DrawScore:
+    ; Draw "Score:"
+    ld c, 0
+    ld b, 0
+    ld hl, ScoreText
+    ld d, 3
+    ld e, 3
+    call RenderTextToEnd
+    ; Draw score value
     ld a, [SCORE]
     ld b, ZERO_CHAR ; tile number of 0 character on the title screen
     ld c, 0         ; draw to background
@@ -311,8 +319,17 @@ IncreaseSpeed: ; If the score matches any of the cutoffs below the speed will in
 
     ret
 
+; Modifies ABCFHL
 GameOver:
 ; Compare player's score with high score and save new high score if it's higher 
+    call HideSprites
+    call ClearScreen
+    call DrawGameOver
+    call UpdateHighScore
+    call DrawScore
+    jp GameOverLoop
+
+UpdateHighScore:
     ld a, [SCORE]
     ld b, a 
     
@@ -320,20 +337,22 @@ GameOver:
     ld a, [SRAM_HIGH_SCORE]
     
     cp b 
-    call c, .newHighScore
-    
-    call DisableSaveData
-
-    call HideSprites
-    call ClearScreen
-
-    ; Resets the game  
-    jp GingerBreadBegin 
+    jr c, .newHighScore     ; If the score is higher save it and display a different message
+    call DrawHighScore
+    ret
     
 ; Local function for writing high score to SRAM     
 .newHighScore:
     ld a, b 
     ld [SRAM_HIGH_SCORE], a 
+    call DrawNewHighScore
+    ret
+
+HideSprites:
+    ld   hl, SPRITES_START
+    ld   bc, SPRITES_LENGTH
+    xor a 
+    call mSetVRAM 
     ret
 
 ClearScreen:
@@ -341,9 +360,51 @@ ClearScreen:
     ld hl, BACKGROUND_MAPDATA_START
     ld bc, 32*32
     call mSetVRAM
+    ret
 
-HideSprites:
-    ld   hl, SPRITES_START
-    ld   bc, SPRITES_LENGTH
-    xor a 
-    call mSetVRAM 
+DrawGameOver:
+    ld c, 0
+    ld b, 0
+    ld hl, GameOverText
+    ld d, 6
+    ld e, 8
+    call RenderTextToEnd
+    ret
+
+DrawNewHighScore:
+
+    ld c, 0
+    ld b, 0
+    ld hl, NewHighScoreText
+    ld d, 2
+    ld e, 13
+    call RenderTextToEnd
+
+    ; Display current high score
+    ld a, [SRAM_HIGH_SCORE]
+    ld b, a
+
+    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
+
+    ld a, b
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 17   ; X position
+    ld e, 13  ; Y position
+    call RenderTwoDecimalNumbers
+    ret
+
+GameOverLoop:
+
+    ld a, 1
+
+    halt
+    nop ; Always do a nop after a halt, because of a CPU bug
+
+    call ReadKeys
+    and KEY_START | KEY_A
+    cp 0
+
+    jp nz, GingerBreadBegin 
+
+    jr GameOverLoop

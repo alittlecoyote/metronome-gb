@@ -43,7 +43,8 @@ SetupHighScore:
     jr nz, .initializeSRAM
 
     ; If we get here, no initialization is necessary
-    jr .print
+    call DrawHighScore
+    jr TitleLoop
 
 .initializeSRAM:
     ; Initialize high score to 0
@@ -57,29 +58,7 @@ SetupHighScore:
     ld a, $37
     ld [SRAM_INTEGRITY_CHECK+1], a
 
-    jr .print
-
-.print:
-
-    ld c, 0
-    ld b, 0
-    ld hl, HighScoreText
-    ld d, 2
-    ld e, 14
-    call RenderTextToEnd
-
-    ; Display current high score
-    ld a, [SRAM_HIGH_SCORE]
-    ld b, a
-
-    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
-
-    ld a, b
-    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 14   ; X position
-    ld e, 14  ; Y position
-    call RenderTwoDecimalNumbers
+    call DrawHighScore
 
 TitleLoop:
 
@@ -151,4 +130,27 @@ InitGameVariables:
     ld [LEFT_HIT], a
     ld [RIGHT_HIT], a
 
+    ret
+
+DrawHighScore:
+
+    ld c, 0
+    ld b, 0
+    ld hl, HighScoreText
+    ld d, 2
+    ld e, 14
+    call RenderTextToEnd
+
+    ; Display current high score
+    ld a, [SRAM_HIGH_SCORE]
+    ld b, a
+
+    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
+
+    ld a, b
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 14   ; X position
+    ld e, 14  ; Y position
+    call RenderTwoDecimalNumbers
     ret
