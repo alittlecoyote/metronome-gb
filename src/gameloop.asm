@@ -28,25 +28,18 @@ GameLoop:
 .slot1
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [LEFT_HIT]
-    cp 0
-    jp z, GameOver
-    ; Otherwise reset the hit and the ball continues
-    call ResetHit
+    call .checkHit
 
     ld a, 1
-    ld [BALL_DIRECTION], a
-    call IncrementScore
+    call .successfulHit 
     jr .moveRight
 .slot6
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [RIGHT_HIT]
-    cp 0
-    jp z, GameOver
-    call ResetHit
+    call .checkHit
 
     xor a ; let a == 0
-    ld [BALL_DIRECTION], a
-    call IncrementScore
+    call .successfulHit 
     jr .moveLeft
 .moveLeft
     ld a, [BALL_SLOT]
@@ -60,6 +53,16 @@ GameLoop:
     ld [BALL_SLOT], a
     call UpdateBallPostion
     jr GameLoop
+.checkHit
+    cp 0
+    jp z, GameOver
+    call ResetHit
+    ret
+.successfulHit
+    ld [BALL_DIRECTION], a
+    call BounceSound
+    call IncrementScore
+    ret
 
 WaitForInputs:
     ld a, [BALL_DELAY]  ; Lower delay == faster ball
@@ -417,3 +420,19 @@ Restart:
     cp 0            ; Check they've let go so we don't skip the title screen
     jp nz, Restart
     jp GingerBreadBegin
+
+BounceSound:
+    ld hl , Sound_ball_bounce
+    call PlaySoundHL
+    ret
+
+
+
+Sound_ball_bounce: ; give the sound a name in the code
+DW SOUND_CH4_START ; specify which channel
+; in this case channel 4 (noise)
+DB %00000000 ; Data to be written to SOUND_CH4_START
+DB %00000100 ; Data to be written to SOUND_CH4_LENGTH
+DB %01111111 ; Data to be written to SOUND_CH4_ENVELOPE
+DB %01010101 ; Data to be written to SOUND_CH4_POLY
+DB %11000110 ; Data to be written to SOUND_CH4_OPTIONS
