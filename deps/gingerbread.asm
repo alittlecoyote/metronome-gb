@@ -345,6 +345,38 @@ mCopyVramMono:
 ; HL - memory position of the start of the copying source
 ; DE - memory position of the start of the copying destination
 ; BC - the number of bytes to be copied
+; The offset will  be adde to every tile location, this must be set before calling
+mCopyVRAMWithOffset:
+    inc b
+    inc c
+    jr  .skip
+.loop:
+    di
+        ; This "WaitForNonBusyLCD" here, along with the disabled interrupts, makes it safe to read/write to/from VRAM when LCD is on
+        ; Essentially, we're waiting for the LCD to be non-busy before reading/writing. If we don't do this, we can
+        ; read/write when the LCD is busy which results in corrupted data.
+        WaitForNonBusyLCD
+        ld a, [hl+]
+        push bc ; save this for later
+        ld b, a
+        ld a, [MAP_OFFSET]  ; add the offset calculated earlier
+        add a, b
+        pop bc
+        ld [de], a
+    ei
+    inc de
+.skip:
+    dec c
+    jr  nz, .loop
+    dec b
+    jr nz, .loop
+    ret
+
+
+; Copies data in a way that is safe to use when reading/writing to/from VRAM while LCD is on (but slower than mCopy)
+; HL - memory position of the start of the copying source
+; DE - memory position of the start of the copying destination
+; BC - the number of bytes to be copied
 mCopyVRAM:
     inc b
     inc c

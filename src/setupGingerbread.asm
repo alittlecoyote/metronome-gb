@@ -29,6 +29,7 @@ INCLUDE "../deps/gingerbread.asm"
 SECTION "Include@banks",ROMX
 INCLUDE "../deps/ibmpc1.inc"
 INCLUDE "../deps/metronome_bg.inc"
+INCLUDE "../deps/title_bg.inc"
 
 IF DEF(USE_GBT_PLAYER)
 INCLUDE "gbt_player.inc"
@@ -41,6 +42,7 @@ ENDC
 ; 2 - Width (number of columns)
 ; 3 - Source to copy from
 ; 4 - Destination to copy to
+; 5 - Additional tile offset
 CopyRegionToVRAM: MACRO
 
 I SET 0
@@ -50,8 +52,12 @@ REPT \1
     ld hl, \3+(I*\2)
     ld de, \4+(I*32)
 
-    call mCopyVRAM
+    call mCopyVRAMWithOffset
 
 I SET I+1
 ENDR
 ENDM
+
+;Init offset
+xor a
+ld [MAP_OFFSET], a

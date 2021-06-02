@@ -23,43 +23,46 @@ GameLoop:
     ; Otherwise the ball continues
     ld a, [BALL_DIRECTION]
     cp 1
-    jr z, .slotRight
-    jr .slotLeft
+    jr z, .moveRight
+    jr .moveLeft
 .slot1
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [LEFT_HIT]
-    cp 0
-    jp z, GameOver
-    ; Otherwise reset the hit and the ball continues
-    call ResetHit
+    call .checkHit
 
     ld a, 1
-    ld [BALL_DIRECTION], a
-    call IncrementScore
-    jr .slotRight
+    call .successfulHit 
+    jr .moveRight
 .slot6
     ; If the player doesn't get a hit in an end slot then its game over
     ld a, [RIGHT_HIT]
-    cp 0
-    jp z, GameOver
-    call ResetHit
+    call .checkHit
 
     xor a ; let a == 0
-    ld [BALL_DIRECTION], a
-    call IncrementScore
-    jr .slotLeft
-.slotLeft
+    call .successfulHit 
+    jr .moveLeft
+.moveLeft
     ld a, [BALL_SLOT]
     dec a
     ld [BALL_SLOT], a
     call UpdateBallPostion
     jr GameLoop
-.slotRight
+.moveRight
     ld a, [BALL_SLOT]
     inc a
     ld [BALL_SLOT], a
     call UpdateBallPostion
     jr GameLoop
+.checkHit
+    cp 0
+    jp z, GameOver
+    call ResetHit
+    ret
+.successfulHit
+    ld [BALL_DIRECTION], a
+    call BounceSound
+    call IncrementScore
+    ret
 
 WaitForInputs:
     ld a, [BALL_DELAY]  ; Lower delay == faster ball
@@ -141,21 +144,29 @@ ResetPresses:
 
 ; Modifies ABCDE
 DrawScore:
+    ; Draw "Score:"
+    ld c, 0
+    ld b, 0
+    ld hl, ScoreText
+    ld d, 3
+    ld e, 3
+    call RenderTextToEnd
+    ; Draw score value
     ld a, [SCORE]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 3  ; Y position
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0         ; draw to background
+    ld d, 9         ; X position
+    ld e, 3         ; Y position
     call RenderTwoDecimalNumbers
     ret
 
 ; Modifies ABCDE
 DrawLevel:
     ld a, [LEVEL]
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 9   ; X position
-    ld e, 1  ; Y position
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0         ; draw to background
+    ld d, 9         ; X position
+    ld e, 1         ; Y position
     call RenderTwoDecimalNumbers
     ret
 
@@ -311,8 +322,17 @@ IncreaseSpeed: ; If the score matches any of the cutoffs below the speed will in
 
     ret
 
+; Modifies ABCFHL
 GameOver:
 ; Compare player's score with high score and save new high score if it's higher 
+    call HideSprites
+    call ClearScreen
+    call DrawGameOver
+    call UpdateHighScore
+    call DrawScore
+    jp GameOverLoop
+
+UpdateHighScore:
     ld a, [SCORE]
     ld b, a 
     
@@ -320,15 +340,99 @@ GameOver:
     ld a, [SRAM_HIGH_SCORE]
     
     cp b 
-    call c, .newHighScore
-    
-    call DisableSaveData
-    
-    ; Resets the game  
-    jp GingerBreadBegin 
+    jr c, .newHighScore     ; If the score is higher save it and display a different message
+    call DrawHighScore
+    ret
     
 ; Local function for writing high score to SRAM     
 .newHighScore:
     ld a, b 
     ld [SRAM_HIGH_SCORE], a 
+    call DrawNewHighScore
     ret
+
+HideSprites:
+    ld   hl, SPRITES_START
+    ld   bc, SPRITES_LENGTH
+    xor a 
+    call mSetVRAM 
+    ret
+
+ClearScreen:
+    ld a, $FE
+    ld hl, BACKGROUND_MAPDATA_START
+    ld bc, 32*32
+    call mSetVRAM
+    ret
+
+DrawGameOver:
+    ld c, 0
+    ld b, 0
+    ld hl, GameOverText
+    ld d, 6
+    ld e, 8
+    call RenderTextToEnd
+    ret
+
+DrawNewHighScore:
+
+    ld c, 0
+    ld b, 0
+    ld hl, NewHighScoreText
+    ld d, 2
+    ld e, 13
+    call RenderTextToEnd
+
+    ; Display current high score
+    ld a, [SRAM_HIGH_SCORE]
+    ld b, a
+
+    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
+
+    ld a, b
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 17   ; X position
+    ld e, 13  ; Y position
+    call RenderTwoDecimalNumbers
+    ret
+
+GameOverLoop:
+    call ReadKeys
+    cp 0            ; Check they've let go so we don't skip the game over screen
+    jp nz, GameOverLoop
+
+.loop
+
+    halt
+    nop ; Always do a nop after a halt, because of a CPU bug
+
+    call ReadKeys
+    and KEY_START | KEY_A
+    cp 0
+
+    jp nz, Restart 
+
+    jr .loop
+
+Restart:
+    call ReadKeys
+    cp 0            ; Check they've let go so we don't skip the title screen
+    jp nz, Restart
+    jp GingerBreadBegin
+
+BounceSound:
+    ld hl , Sound_ball_bounce
+    call PlaySoundHL
+    ret
+
+
+
+Sound_ball_bounce: ; give the sound a name in the code
+DW SOUND_CH4_START ; specify which channel
+; in this case channel 4 (noise)
+DB %00000000 ; Data to be written to SOUND_CH4_START
+DB %00000100 ; Data to be written to SOUND_CH4_LENGTH
+DB %01111111 ; Data to be written to SOUND_CH4_ENVELOPE
+DB %01010101 ; Data to be written to SOUND_CH4_POLY
+DB %11000110 ; Data to be written to SOUND_CH4_OPTIONS

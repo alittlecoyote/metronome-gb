@@ -1,8 +1,8 @@
 CharsetTileData:
-    chr_IBMPC1  1,8 ; load whole ipbpc charset (should really only load what i need, but lazy)
+    chr_IBMPC1  2,4 ; load partial ipbpc charset (punctuation marks, alphanumeric chars)
 
 begin:
-    ; Switch bank to whatever bank contains the tile data
+    ; Switch bank to whatever bank contains the tile data and load all the tile data
     ld a, BANK(metronome_bg_tile_data)
     ld [ROM_BANK_SWITCH], a
 
@@ -13,13 +13,29 @@ begin:
 
     ld  hl, CharsetTileData
     ld  de, TILEDATA_START + metronome_bg_tile_data_size
-    ld  bc, 8*256       ; the ASCII character set: 256 characters, each with 8 bytes of display data
+    ld  bc, CHARSET_SIZE
     call    mCopyVramMono
 
-    ld a, BANK(metronome_bg_map_data)
+    ld hl, title_bg_tile_data
+    ld de, TILEDATA_START  + metronome_bg_tile_data_size + CHARSET_SIZE * 2 ; Charset size needs multiplied by 2
+    ld bc, title_bg_tile_data_size
+    call mCopyVRAM
+
+    ; Update map offset for the title background
+    xor a
+    ld b, metronome_bg_tile_count
+    add a, b
+    ld b, CHARSET_COUNT
+    add a, b
+    ld [MAP_OFFSET], a
+
+    ;  Switch bank to whatever bank contains the map data and load all the title map data
+    ld a, BANK(title_bg_map_data)
     ld [ROM_BANK_SWITCH], a
 
-    CopyRegionToVRAM 18, 20, metronome_bg_map_data, BACKGROUND_MAPDATA_START
+    CopyRegionToVRAM 18, 20, title_bg_map_data, BACKGROUND_MAPDATA_START
+
+    call ClearOffset
 
     call StartLCD
 
@@ -43,7 +59,8 @@ SetupHighScore:
     jr nz, .initializeSRAM
 
     ; If we get here, no initialization is necessary
-    jr .print
+    call DrawHighScore
+    jr TitleLoop
 
 .initializeSRAM:
     ; Initialize high score to 0
@@ -57,39 +74,14 @@ SetupHighScore:
     ld a, $37
     ld [SRAM_INTEGRITY_CHECK+1], a
 
-    jr .print
-
-.print:
-
-    ld c, 0
-    ld b, 0
-    ld hl, HighScoreText
-    ld d, 2
-    ld e, 14
-    call RenderTextToEnd
-
-    ; Display current high score
-    ld a, [SRAM_HIGH_SCORE]
-    ld b, a
-
-    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
-
-    ld a, b
-    ld b, $65 ; tile number of 0 character on the title screen
-    ld c, 0   ; draw to background
-    ld d, 14   ; X position
-    ld e, 14  ; Y position
-    call RenderTwoDecimalNumbers
+    call DrawHighScore
 
 TitleLoop:
-
-    ld a, 1
-
     halt
     nop ; Always do a nop after a halt, because of a CPU bug
 
     call ReadKeys
-    and KEY_START
+    and KEY_START | KEY_A | KEY_LEFT
     cp 0
 
     jp nz, TransitionToGame
@@ -98,6 +90,12 @@ TitleLoop:
 
 ; Modifies ABCDEFHL
 TransitionToGame:
+    halt
+    nop ; Always do a nop after a halt, because of a CPU bug
+    call ReadKeys
+    cp 0
+    jr nz, TransitionToGame ; Keep looping until the key is let go to prevent instant failure
+
     ; Clear highscore line
     ld c, 0
     ld b, 0
@@ -105,6 +103,13 @@ TransitionToGame:
     ld d, 0
     ld e, 14
     call RenderTextToEnd
+
+    ; Draw Background
+    ;  Switch bank to whatever bank contains the map data and load all the title map data
+    ld a, BANK(metronome_bg_map_data)
+    ld [ROM_BANK_SWITCH], a
+
+    CopyRegionToVRAM 18, 20, metronome_bg_map_data, BACKGROUND_MAPDATA_START
 
     ; Draw "Level:"
     ld c, 0
@@ -151,4 +156,33 @@ InitGameVariables:
     ld [LEFT_HIT], a
     ld [RIGHT_HIT], a
 
+    ret
+
+DrawHighScore:
+
+    ld c, 0
+    ld b, 0
+    ld hl, HighScoreText
+    ld d, 2
+    ld e, 14
+    call RenderTextToEnd
+
+    ; Display current high score
+    ld a, [SRAM_HIGH_SCORE]
+    ld b, a
+
+    call DisableSaveData ; Since we no longer need it. Always disable SRAM as quickly as possible.
+
+    ld a, b
+    ld b, ZERO_CHAR ; tile number of 0 character on the title screen
+    ld c, 0   ; draw to background
+    ld d, 13   ; X position
+    ld e, 14  ; Y position
+    call RenderTwoDecimalNumbers
+    ret
+
+
+ClearOffset:
+    xor a
+    ld [MAP_OFFSET], a
     ret
