@@ -395,7 +395,11 @@ DrawNewHighScore:
     ret
 
 GameOverLoop:
-    ld a, 1
+    call ReadKeys
+    cp 0            ; Check they've let go so we don't skip the game over screen
+    jp nz, GameOverLoop
+
+.loop
 
     halt
     nop ; Always do a nop after a halt, because of a CPU bug
@@ -406,10 +410,10 @@ GameOverLoop:
 
     jp nz, Restart 
 
-    jr GameOverLoop
+    jr .loop
 
 Restart:
     call ReadKeys
-    cp 0
+    cp 0            ; Check they've let go so we don't skip the title screen
     jp nz, Restart
     jp GingerBreadBegin

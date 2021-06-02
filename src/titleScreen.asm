@@ -77,14 +77,11 @@ SetupHighScore:
     call DrawHighScore
 
 TitleLoop:
-
-    ld a, 1
-
     halt
     nop ; Always do a nop after a halt, because of a CPU bug
 
     call ReadKeys
-    and KEY_START
+    and KEY_START | KEY_A | KEY_LEFT
     cp 0
 
     jp nz, TransitionToGame
@@ -93,6 +90,12 @@ TitleLoop:
 
 ; Modifies ABCDEFHL
 TransitionToGame:
+    halt
+    nop ; Always do a nop after a halt, because of a CPU bug
+    call ReadKeys
+    cp 0
+    jr nz, TransitionToGame ; Keep looping until the key is let go to prevent instant failure
+
     ; Clear highscore line
     ld c, 0
     ld b, 0
